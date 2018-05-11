@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Drawing Pad</title>
+    <style>
+        canvas {
+            border: 1px solid gray;
+        }
+    </style>
+    <script>
+        /* configures */
+        var myself = 'client-a';
+        var serverUrl = 'ws://127.0.0.1:8999';
+    </script>
+</head>
+
+<body>
+    <h1>Sketchpad</h1>
+
+    <button id="btn" onclick="setKeyword()">Start</button>
+    <div>
+        <span id="keyword"></span>
+    </div>
+    <hr/>
+    <div>
+        <canvas id="canvas" width="500" height="350">
+        </canvas>
+    </div>
+    <div>
+        <button id="btn" onclick="ClearCanvas()">Clear Pad</button>
+    </div>
+
+    <script>
+        //websocket set
+        var websocket = new WebSocket(serverUrl);
+        websocket.onopen = function (evt) {
+            console.log('-- web socket opened --');
+            websocket.send(myself);
+            init_canvas();
+        }
+        websocket.onclose = function (evt) {
+            console.log('-- web socket closed --');
+        }
+        websocket.onmessage = function (evt) {
+            console.log('-- web socket got message --');
+            console.log(evt.data);
+            var data = JSON.parse(evt.data);
+            sync_canvas(data);
+        }
+        websocket.onerror = function (evt) {
+            console.log('-- web socket got error --');
+            console.log(evt.data);
+            alert(evt.data);
+        }
+
+        //canvas setting
+        var canvas = document.getElementById('canvas');
+        var context = canvas.getContext('2d');
+        context.strokeStyle = '#FF00FF';
+
+        //keywords setting
+        var wordsArr = ["Panda","Tiger","Monkey","Elephant","Giraffe","Fish","Cat","Dog"];
+        console.log(wordsArr, wordsArr.length);
+
+
+        function setKeyword() {
+            var lengthArr = this.wordsArr.length;
+            var num = parseInt(Math.random(0,lengthArr)*lengthArr,10);
+            keyword = this.wordsArr[num];
+            console.log('keyword:',keyword);
+            document.getElementById("keyword").innerHTML = keyword;
+            this.sendKeyword(keyword);
+            return keyword;
+        }
+
+        function sendKeyword(keyword) {
+            dataTrans = {keyword: ''};
+            dataTrans.keyword = keyword;
+            websocket.send(JSON.stringify(dataTrans));
+        }
+
+
+
+        function sync_canvas(data) {
+            // begin the path
+            context.beginPath();
+            // draw the line 
+            context.moveTo(data.beginx, data.beginy);
+            context.lineTo(data.endx, data.endy);
+            context.stroke();
+            // close the current path
+            context.closePath();
+            //IF answer the right answer
+            if (data == 'right'){
+                this.setKeyword();
+                this.ClearCanvas();
+            }
+        }
+
+        function init_canvas() {
+            var newPath = false;
+
+            // mouse down event handler
+            canvas.onmousedown = function (e) {
+                // mouse x and y relative to canvas
+                x = e.clientX - e.target.offsetLeft;
+                y = e.clientY - e.target.offsetTop;
+                // start a new path
+                newPath = {
+                    beginx: 0,
+                    beginy: 0,
+                    endx: x,
+                    endy: y
+                };
+                // begin the path
+                context.beginPath();
+                context.moveTo(x, y);
+            }
+
+            // mouse move event handler
+            canvas.onmousemove = function (e) {
+                // mouse x and y relative to canvas
+                x = e.clientX - e.target.offsetLeft;
+                y = e.clientY - e.target.offsetTop;
+                // draw the line 
+                if (newPath) {
+                    context.lineTo(x, y);
+                    context.stroke();
+                    newPath.beginx = newPath.endx;
+                    newPath.beginy = newPath.endy;
+                    newPath.endx = x;
+                    newPath.endy = y;
+                    websocket.send(JSON.stringify(newPath));
+                }
+            }
+
+            // mouse up event handler
+            canvas.onmouseup = function (e) {
+                // mouse x and y relative to canvas
+                x = e.clientX - e.target.offsetLeft;
+                y = e.clientY - e.target.offsetTop;
+                // close the current path
+                context.closePath();
+                // make the new path variable false
+                newPath = false;
+            }
+            ////////////////////////
+        }
+
+        function ClearCanvas() {
+            context.clearRect(0,0,500,350);
+            websocket.send(JSON.stringify('clear'));
+        }
+    </script>
+</body>
+
+</html>

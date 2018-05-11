@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Showing Pad</title>
+    <style>
+        canvas {
+            border: 1px solid gray;
+        }
+    </style>
+    <script>
+        /* configures */
+        var myself = 'client-b';
+        var serverUrl = 'ws://127.0.0.1:8999';
+    </script>
+</head>
+
+<body>
+    <h1>AnswerPad</h1>
+    <hr/>
+
+    <div>
+        <canvas id="canvas" width="500" height="350">
+        </canvas>
+    </div>
+    <div>
+        <input id="input_value">
+        <button onclick="checkAnswer()">Submit</button>
+    </div>
+
+    <script>
+        var canvas = document.getElementById('canvas');
+        var context = canvas.getContext('2d');
+        var keyword = '';
+
+        context.strokeStyle = '#FF00FF';
+
+        function sync_canvas(data) {
+            // begin the path
+            context.beginPath();
+            // draw the line 
+            context.moveTo(data.beginx, data.beginy);
+            context.lineTo(data.endx, data.endy);
+            context.stroke();
+            // close the current path
+            context.closePath();
+            //sync clean the pad
+            if(data == 'clear'){
+                context.clearRect(0,0,500,350);
+            }else if(data.keyword){
+                this.keyword = data.keyword;
+            }
+        }
+
+        var websocket = new WebSocket(serverUrl);
+        websocket.onopen = function (evt) {
+            console.log('-- web socket opened --');
+            websocket.send(myself);
+        }
+        websocket.onclose = function (evt) {
+            console.log('-- web socket closed --');
+        }
+        websocket.onmessage = function (evt) {
+            console.log('-- web socket got message --');
+            //console.log(evt.data);
+            var data = JSON.parse(evt.data);
+            sync_canvas(data);
+        }
+        websocket.onerror = function (evt) {
+            console.log('-- web socket got error --');
+            console.log(evt.data);
+            alert(evt.data);
+        }
+
+        function checkAnswer() {
+            var answer = document.getElementById("input_value").value;
+            if(answer == this.keyword && answer != ''){
+                console.log("Congrads!");
+                alert("Congrads! Your answer is right!");
+                websocket.send(JSON.stringify("right"));
+            } else {
+                console.log("Wrong!Try again!");
+                alert("Wrong! Try again!");
+            }
+
+        }
+    </script>
+</body>
+
+</html>
